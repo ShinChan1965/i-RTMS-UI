@@ -191,12 +191,44 @@ function getRouteDetails(id, from, to, busNumber) {
 async function fetchPassengerCount(opts) {
   const routeId = opts && opts.routeId ? String(opts.routeId) : "";
   const busNumber = opts && opts.busNumber ? String(opts.busNumber) : "";
+  const maxAgeMs = opts && opts.maxAgeMs != null ? String(opts.maxAgeMs) : "0";
   const qs = new URLSearchParams();
   if (routeId) qs.set("routeId", routeId);
   if (busNumber) qs.set("busNumber", busNumber);
+  qs.set("maxAgeMs", maxAgeMs);
+  qs.set("_t", String(Date.now()));
   const url = "/api/passenger-count" + (qs.toString() ? `?${qs.toString()}` : "");
   const data = await apiGetJson(url);
-  return typeof data.count === "number" ? data.count : 0;
+  const payload = data && typeof data === "object"
+    ? (data.latest && typeof data.latest === "object" ? data.latest : data)
+    : {};
+  const inside = typeof payload.inside === "number"
+    ? payload.inside
+    : typeof payload.inside_total === "number"
+      ? payload.inside_total
+      : typeof payload.count === "number"
+        ? payload.count
+        : 0;
+  const entered = typeof payload.entered === "number"
+    ? payload.entered
+    : typeof payload.entered_total === "number"
+      ? payload.entered_total
+      : typeof payload.in === "number"
+        ? payload.in
+        : 0;
+  const exited = typeof payload.exited === "number"
+    ? payload.exited
+    : typeof payload.exited_total === "number"
+      ? payload.exited_total
+      : typeof payload.out === "number"
+        ? payload.out
+        : 0;
+  return {
+    inside,
+    entered,
+    exited,
+    timestamp: payload.timestamp || payload.updatedAt || null,
+  };
 }
 
 async function fetchLiveLocation(opts) {
